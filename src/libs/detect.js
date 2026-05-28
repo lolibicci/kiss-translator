@@ -54,7 +54,7 @@ export const tryDetectLang = async (text, langDetector = "-") => {
       if (res.isReliable && lang && OPT_LANGS_MAP.has(lang)) {
         deLang = lang;
       } else if (lang?.startsWith("zh")) {
-        deLang = "zh-CN";
+        deLang = OPT_LANGS_MAP.has(lang) ? lang : "";
       }
     } catch (err) {
       kissLog("detect lang local", err);
