@@ -153,7 +153,7 @@ describe("Draggable FAB edge locking", () => {
     act(() => jest.runOnlyPendingTimers());
 
     expect(draggable.style.transform).toBe("translate(300px, -20px)");
-    expect(putFab).toHaveBeenLastCalledWith({ x: 300, y: -20, edge: "top" });
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test("hovering expands the FAB without changing its saved edge", () => {
@@ -169,7 +169,19 @@ describe("Draggable FAB edge locking", () => {
     );
     act(() => jest.runOnlyPendingTimers());
     expect(draggable.style.transform).toBe("translate(580px, 200px)");
-    expect(putFab).toHaveBeenLastCalledWith({ x: 580, y: 200, edge: "right" });
+    expect(putFab).not.toHaveBeenCalled();
+  });
+
+  test("restores proportional position using the saved viewport", () => {
+    renderFab({
+      left: 1180,
+      top: 600,
+      savedViewport: { w: 1200, h: 800 },
+    });
+    act(() => jest.runOnlyPendingTimers());
+
+    expect(draggable.style.transform).toBe("translate(580px, 300px)");
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test("changes the locked edge only after a real drag", () => {
@@ -197,28 +209,35 @@ describe("Draggable FAB edge locking", () => {
     act(() => {
       handler.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
     });
+    expect(putFab).toHaveBeenCalledTimes(1);
+    expect(putFab).toHaveBeenLastCalledWith({
+      x: 290,
+      y: -20,
+      edge: "top",
+      viewport: { w: 600, h: 400 },
+    });
     act(() => {
       jest.runOnlyPendingTimers();
     });
 
     expect(draggable.style.transform).toBe("translate(290px, -20px)");
-    expect(putFab).toHaveBeenLastCalledWith({ x: 290, y: -20, edge: "top" });
+    expect(putFab).toHaveBeenCalledTimes(1);
   });
 
-  test("infers and persists an edge for legacy FAB positions", () => {
+  test("infers an edge for legacy FAB positions", () => {
     renderFab({ edge: undefined });
     act(() => jest.runOnlyPendingTimers());
 
     expect(draggable.style.transform).toBe("translate(580px, 200px)");
-    expect(putFab).toHaveBeenLastCalledWith({ x: 580, y: 200, edge: "right" });
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test("poison coordinates from a narrower viewport are clamped into drag-reachable bounds on mount", () => {
     // 毒坐标新视口挂载回归：800×600 视口挂载遗留自宽视口的 {x:1400, y:-20, edge:"top"}。
     // top: -20 是历史毒坐标输入，但 top 分支输出 -20 实际来自 -height / 2（贴边隐藏语义），不是输入值。
-    // putFab 为 mock：本测试只证明传给 putFab 的 payload 不再含越界正交坐标，不覆盖真实 storage 读写闭环。
+    // 挂载时仅修正显示位置，不写回 storage。
     setViewport(800, 600);
-    const fab = renderFab({
+    renderFab({
       left: 1400,
       top: -20,
       edge: "top",
@@ -227,7 +246,7 @@ describe("Draggable FAB edge locking", () => {
     act(() => jest.runOnlyPendingTimers());
 
     expect(draggable.style.transform).toBe("translate(780px, -20px)");
-    expect(putFab).toHaveBeenLastCalledWith({ x: 780, y: -20, edge: "top" });
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -241,7 +260,7 @@ describe("Draggable FAB edge locking", () => {
       // 四个角落：只有被 clamp 的正交轴越界值收敛（如 edge=left 的 top=-20 -> 0，
       // 因拖拽 min y=0），其余拖拽可达位置全部保持原样（如右下/左上双半隐藏）。
       setViewport(800, 600);
-      const fab = renderFab({
+      renderFab({
         left: edge === "top" || edge === "bottom" ? ortho : 1400,
         top: edge === "left" || edge === "right" ? ortho : 500,
         edge,
@@ -253,7 +272,7 @@ describe("Draggable FAB edge locking", () => {
     }
   );
 
-  test("zero viewport yields finite in-range corners without NaN or negative upper bound", () => {
+  test("skips positioning for a zero viewport and recovers when it becomes valid", () => {
     setViewport(0, 0);
     const fab = renderFab({
       left: 0,
@@ -263,13 +282,20 @@ describe("Draggable FAB edge locking", () => {
     });
     act(() => jest.runOnlyPendingTimers());
 
-    expect(draggable.style.transform).toBe("translate(-20px, -20px)");
+    expect(draggable.style.transform).toBe("");
     expect(draggable.style.transform).not.toMatch(/NaN|Infinity/);
-    expect(putFab).toHaveBeenLastCalledWith({ x: -20, y: -20, edge: "top" });
+    expect(putFab).not.toHaveBeenCalled();
+
+    setViewport(600, 400);
+    rerenderFab(fab, { windowSize: { w: 600, h: 400 } });
+    act(() => jest.runOnlyPendingTimers());
+
+    expect(draggable.style.transform).toBe("translate(0px, -20px)");
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test("non-finite coordinates fall back safely instead of producing illegal transforms", () => {
-    const fab = renderFab({
+    renderFab({
       left: Infinity,
       top: Number.NaN,
       edge: "left",
@@ -279,7 +305,7 @@ describe("Draggable FAB edge locking", () => {
 
     expect(draggable.style.transform).toBe("translate(-20px, 0px)");
     expect(draggable.style.transform).not.toMatch(/NaN|Infinity/);
-    expect(putFab).toHaveBeenLastCalledWith({ x: -20, y: 0, edge: "left" });
+    expect(putFab).not.toHaveBeenCalled();
   });
 
   test("default edge (undefined) follows top semantics when clamping the orthogonal axis", () => {

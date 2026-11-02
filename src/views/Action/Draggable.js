@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { limitFloat, limitNumber } from "../../libs/utils";
 import { isMobile } from "../../libs/mobile";
 import { putFab } from "../../libs/storage";
-import { debounce } from "../../libs/utils";
 import Paper from "@mui/material/Paper";
 
 const FAB_EDGES = ["left", "right", "top", "bottom"];
@@ -105,6 +104,7 @@ export default function Draggable({
   left,
   top,
   edge: savedEdge,
+  savedViewport,
   show = true,
   snapEdge,
   onStart,
@@ -121,20 +121,19 @@ export default function Draggable({
   const containerRef = useRef(null);
   const draggedRef = useRef(false);
 
-  // 用百分比的形式保存位置，以便在视口大小 resize 时等比例缩放位置
-  // REVIEW: 这里的 left / windowWidth 和 top / windowHeight 在首帧 windowWidth/Height 为 0 的异常场景下，
-  // 会产生值为 NaN 或 Infinity 的致命错误。推荐使用 (windowWidth || 1) 对除数进行安全拦截。
-  const latestPosition = useRef({
-    x: left / windowWidth,
-    y: top / windowHeight,
+  // 使用保存时的视口恢复比例，兼容旧版仅保存像素坐标的配置。
+  const [position, setPosition] = useState(() => {
+    const ratio = (coordinate, size, fallbackSize) => {
+      const divisor = Number.isFinite(size) && size > 0 ? size : fallbackSize;
+      return Number.isFinite(coordinate) ? coordinate / (divisor || 1) : 0;
+    };
+    return {
+      x: ratio(left, savedViewport?.w, windowWidth),
+      y: ratio(top, savedViewport?.h, windowHeight),
+    };
   });
+  const latestPosition = useRef(position);
   const latestEdge = useRef(edge);
-  const [position, setPosition] = useState({
-    x: left / windowWidth,
-    y: top / windowHeight,
-  });
-  // 缓存防抖的 putFab，用于将最新的拖拽坐标写入本地 storage 持久化
-  const setFabPosition = useMemo(() => debounce(putFab, 500), []);
 
   // 执行 transform 移动的 DOM 操作
   const applyTransform = useCallback((x, y) => {
@@ -159,6 +158,7 @@ export default function Draggable({
       const { x: px, y: py } = latestPosition.current;
       const newWindowWidth = document.documentElement.clientWidth;
       const newWindowHeight = document.documentElement.clientHeight;
+      if (newWindowWidth <= 0 || newWindowHeight <= 0) return;
       const currentPosition = {
         x: px * newWindowWidth,
         y: py * newWindowHeight,
@@ -187,7 +187,7 @@ export default function Draggable({
 
   // 贴边自动吸附效果逻辑
   useEffect(() => {
-    if (!snapEdge || !!origin) {
+    if (!snapEdge || !!origin || windowWidth <= 0 || windowHeight <= 0) {
       return;
     }
 
@@ -227,7 +227,6 @@ export default function Draggable({
       y: edgePosition.y / windowHeight,
     };
     setPosition(percentageEdge);
-    setFabPosition({ ...edgePosition, edge: activeEdge });
   }, [
     edge,
     origin,
@@ -237,7 +236,6 @@ export default function Draggable({
     windowWidth,
     windowHeight,
     snapEdge,
-    setFabPosition,
     position.x,
     position.y,
     applyTransform,
@@ -245,6 +243,7 @@ export default function Draggable({
 
   // 鼠标/手指按下，标记拖拽开始并记录起始坐标
   const handlePointerDown = (e) => {
+    if (windowWidth <= 0 || windowHeight <= 0) return;
     !isMobile && e.target.setPointerCapture(e.pointerId); // 捕获指针事件，使得移出当前元素时仍能响应 move
     onStart && onStart();
     draggedRef.current = false;
@@ -296,6 +295,22 @@ export default function Draggable({
       });
       setEdge(nextEdge);
       latestEdge.current = nextEdge;
+      // 只在用户拖动结束时保存；挂载、悬停和缩放不能覆盖其他页面的选择。
+      const edgePosition = getEdgePosition({
+        ...currentPosition,
+        width,
+        height,
+        windowWidth,
+        windowHeight,
+        hover: false,
+        edge: nextEdge,
+      });
+      putFab({
+        ...edgePosition,
+        edge: nextEdge,
+        viewport: { w: windowWidth, h: windowHeight },
+      });
+      draggedRef.current = false;
     }
     setOrigin(null);
   };

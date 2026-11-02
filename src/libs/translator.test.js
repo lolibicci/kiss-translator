@@ -2835,9 +2835,7 @@ describe("Translator rule styles", () => {
         clientY: 20,
       })
     );
-    document.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true })
-    );
+    document.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     jest.advanceTimersByTime(400);
     await flushAsync();
     expect(
@@ -3527,9 +3525,7 @@ describe("Translator rule styles", () => {
     expect(
       document.querySelectorAll(`.${Translator.KISS_CLASS.inner}`)
     ).toHaveLength(7);
-    expect(document.getElementById("p7").textContent).toContain(
-      "Paragraph 7"
-    );
+    expect(document.getElementById("p7").textContent).toContain("Paragraph 7");
 
     document.dispatchEvent(
       new MouseEvent("mouseup", { bubbles: true, button: 0 })
@@ -4059,12 +4055,15 @@ describe("Translator rule styles", () => {
       ...document.querySelectorAll(`.${Translator.KISS_CLASS.inner}`),
     ].map((node) => node.textContent);
     expect(inners).toHaveLength(3);
-    expect(document.querySelector(`#mixed .${Translator.KISS_CLASS.inner}`))
-      .not.toBeNull();
-    expect(document.querySelector(`#line1 .${Translator.KISS_CLASS.inner}`))
-      .not.toBeNull();
-    expect(document.querySelector(`#line2 .${Translator.KISS_CLASS.inner}`))
-      .not.toBeNull();
+    expect(
+      document.querySelector(`#mixed .${Translator.KISS_CLASS.inner}`)
+    ).not.toBeNull();
+    expect(
+      document.querySelector(`#line1 .${Translator.KISS_CLASS.inner}`)
+    ).not.toBeNull();
+    expect(
+      document.querySelector(`#line2 .${Translator.KISS_CLASS.inner}`)
+    ).not.toBeNull();
   });
 
   test("excludes the mail title bar from the whole-area scope", async () => {
@@ -4111,8 +4110,7 @@ describe("Translator rule styles", () => {
     );
 
     expect(
-      document.querySelectorAll(`#body .${Translator.KISS_CLASS.inner}`)
-        .length
+      document.querySelectorAll(`#body .${Translator.KISS_CLASS.inner}`).length
     ).toBeGreaterThanOrEqual(3);
     expect(
       document.querySelector(`#title .${Translator.KISS_CLASS.inner}`)
@@ -4477,9 +4475,7 @@ describe("Translator rule styles", () => {
     document.elementFromPoint = () => wrapper;
     await hold();
 
-    expect(
-      span.querySelector(`.${Translator.KISS_CLASS.warpper}`)
-    ).toBeNull();
+    expect(span.querySelector(`.${Translator.KISS_CLASS.warpper}`)).toBeNull();
   });
 
   test("descends into the title span when the hold lands on the heading wrapper", async () => {
@@ -5103,5 +5099,4 @@ describe("Translator rule styles", () => {
       document.querySelector(`#p2 .${Translator.KISS_CLASS.warpper}`)
     ).not.toBeNull();
   });
-
 });

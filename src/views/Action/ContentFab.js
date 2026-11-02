@@ -13,7 +13,13 @@ import { useFullscreenDetect } from "../../hooks/useFullscreenDetect";
  * 支持拖拽、贴边吸附隐藏以及点击事件
  */
 export default function ContentFab({
-  fabConfig: { x: fabX, y: fabY, edge: fabEdge, fabClickAction = 0 } = {},
+  fabConfig: {
+    x: fabX,
+    y: fabY,
+    edge: fabEdge,
+    viewport: fabViewport,
+    fabClickAction = 0,
+  } = {},
   processActions,
 }) {
   const fabWidth = 40; // 悬浮球的固定宽度 40px
@@ -58,8 +64,9 @@ export default function ContentFab({
       left: fabX ?? -fabWidth,
       top: fabY ?? windowSize.h / 2,
       edge: fabEdge,
+      savedViewport: fabViewport,
     }),
-    [windowSize, fabWidth, fabX, fabY, fabEdge]
+    [windowSize, fabWidth, fabX, fabY, fabEdge, fabViewport]
   );
 
   return (
